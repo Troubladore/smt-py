@@ -60,3 +60,15 @@ def normalize_table_name(name: str) -> str:
 def normalize_column_name(name: str) -> str:
     """Normalize a source column name."""
     return _DEFAULT.normalize_identifier(name)
+
+
+def make_dataset_name(source_host: str, source_database: str, source_schema: str) -> str:
+    """Deterministically derive a dataset name from source instance + DB + schema.
+
+    Replaces ``src/smt/config.py::_sanitize_identifier``-based composition.
+    Output: ``{sanitized_host}__{lowercased_db}__{lowercased_schema}``.
+    """
+    host_part = normalize_source_component(source_host)
+    db_part = source_database.lower()
+    schema_part = source_schema.lower()
+    return f"{host_part}__{db_part}__{schema_part}"
