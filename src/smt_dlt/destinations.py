@@ -6,6 +6,8 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Callable
 
+import dlt
+
 from smt_dlt.naming import normalize_source_component  # noqa: F401  # used in subsequent tasks
 
 # Length of the hex hash suffix used by IdentifierPolicy._shorten. 32 bits is
@@ -144,3 +146,56 @@ def snowflake_identifier_policy() -> IdentifierPolicy:
         # str.upper preserves picklability and value-equality across calls.
         _to_physical=str.upper,
     )
+
+
+def build_postgres_destination(*, connection_string: str, dataset_name: str):
+    """Return a dlt Postgres destination configured with the supplied DSN.
+
+    The SMT canonical naming convention is wired at PIPELINE creation time
+    via ``dlt.pipeline(..., naming="smt_dlt.naming")``, not here — the
+    destination factory owns credentials only. ``dataset_name`` is passed
+    through for symmetry with the Snowflake builder and is used by callers
+    constructing a pipeline.
+    """
+    return dlt.destinations.postgres(credentials=connection_string)
+
+
+def build_snowflake_destination(
+    *,
+    account_identifier: str,
+    user: str,
+    password: str | None = None,
+    private_key: str | None = None,
+    oauth_token: str | None = None,
+    database: str,
+    schema: str,
+    warehouse: str | None = None,
+    role: str | None = None,
+):
+    """Return a dlt Snowflake destination. Exactly one of ``password``,
+    ``private_key``, or ``oauth_token`` must be provided.
+
+    Naming convention wiring happens at pipeline creation time (see
+    ``build_postgres_destination`` docstring).
+    """
+    provided = [x for x in (password, private_key, oauth_token) if x]
+    if len(provided) != 1:
+        raise ValueError(
+            "Exactly one of password, private_key, or oauth_token must be set"
+        )
+    credentials: dict[str, str] = {
+        "host": account_identifier,
+        "username": user,
+        "database": database,
+    }
+    if warehouse:
+        credentials["warehouse"] = warehouse
+    if role:
+        credentials["role"] = role
+    if password:
+        credentials["password"] = password
+    if private_key:
+        credentials["private_key"] = private_key
+    if oauth_token:
+        credentials["token"] = oauth_token
+    return dlt.destinations.snowflake(credentials=credentials)
