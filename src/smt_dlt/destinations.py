@@ -56,3 +56,13 @@ def postgres_identifier_policy() -> IdentifierPolicy:
         # value-equality semantics across calls. A lambda would defeat both.
         _to_physical=str.lower,
     )
+
+
+def snowflake_identifier_policy() -> IdentifierPolicy:
+    return IdentifierPolicy(
+        target="snowflake",
+        max_length=255,
+        reserved_words=frozenset(),  # populated in Task 11
+        # str.upper preserves picklability and value-equality across calls.
+        _to_physical=str.upper,
+    )
