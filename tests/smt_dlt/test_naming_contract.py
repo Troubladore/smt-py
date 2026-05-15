@@ -112,6 +112,12 @@ def test_normalize_column_name_handles_special_chars():
     assert normalize_column_name("First Name") == "first_name"
 
 
-def test_helpers_delegate_to_NamingConvention():
+@pytest.mark.parametrize(
+    "raw",
+    ["X", "My Host", "orders__items", "First Name", "123abc", "foo_"],
+)
+def test_helpers_delegate_to_NamingConvention(raw):
     nc = NamingConvention()
-    assert normalize_table_name("X") == nc.normalize_identifier("X")
+    assert normalize_source_component(raw) == nc.normalize_identifier(raw)
+    assert normalize_table_name(raw) == nc.normalize_identifier(raw)
+    assert normalize_column_name(raw) == nc.normalize_identifier(raw)
