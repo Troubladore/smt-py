@@ -168,20 +168,21 @@ def build_snowflake_destination(
     private_key: str | None = None,
     oauth_token: str | None = None,
     database: str,
-    schema: str,
     warehouse: str | None = None,
     role: str | None = None,
 ):
     """Return a dlt Snowflake destination. Exactly one of ``password``,
-    ``private_key``, or ``oauth_token`` must be provided.
+    ``private_key``, or ``oauth_token`` must be passed (None vs. a
+    string-value-including-empty-string).
 
     Naming convention wiring happens at pipeline creation time (see
     ``build_postgres_destination`` docstring).
     """
-    provided = [x for x in (password, private_key, oauth_token) if x]
-    if len(provided) != 1:
+    provided_count = sum(x is not None for x in (password, private_key, oauth_token))
+    if provided_count != 1:
         raise ValueError(
-            "Exactly one of password, private_key, or oauth_token must be set"
+            f"Expected exactly one of password / private_key / oauth_token; "
+            f"got {provided_count}. Pass exactly one auth credential."
         )
     credentials: dict[str, str] = {
         "host": account_identifier,
