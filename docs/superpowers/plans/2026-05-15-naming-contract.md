@@ -527,7 +527,7 @@ from smt.config import _sanitize_identifier
     "host, database, schema, expected",
     [
         ("localhost", "MyDB", "dbo", "localhost__mydb__dbo"),
-        ("10.0.0.5", "CRM", "Sales", "10_0_0_5__crm__sales"),
+        ("10.0.0.5", "CRM", "Sales", "_10_0_0_5__crm__sales"),
         ("db.eruditis.com", "Prod", "public", "db_eruditis_com__prod__public"),
         ("HOST", "DB", "schema", "host__db__schema"),
     ],
