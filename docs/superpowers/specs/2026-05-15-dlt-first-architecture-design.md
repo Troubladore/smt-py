@@ -57,18 +57,20 @@ shared environments (dev / int / qa / prod)
 
 ### Naming contract
 
-A single `SmtCanonicalNamingConvention` defines case-insensitive logical identity. The destination layer renders physically:
+A single `SmtCanonicalNamingConvention` defines case-insensitive logical identity. There are **three distinct names** for any identifier; they must not be conflated:
 
-| Object | Logical (canonical) | Postgres physical | Snowflake physical |
+| Object | Logical (canonical) | SQLAlchemy metadata (generated `Table` / `Column` names) | Warehouse-stored physical (`INFORMATION_SCHEMA`) |
 |---|---|---|---|
-| Column `CustomerID` | `customer_id` | `customer_id` (unquoted) | `CUSTOMER_ID` (unquoted) |
-| Table `Order__Items` | `order__items` | `order__items` | `ORDER__ITEMS` |
-| Schema name from `host__db__schema` derivation | `sales_db1__crm__dbo` | `sales_db1__crm__dbo` | `SALES_DB1__CRM__DBO` |
+| Column `CustomerID` | `customer_id` | `customer_id` (lowercase for both targets) | PG `customer_id` · SF `CUSTOMER_ID` |
+| Table `Order__Items` | `order__items` | `order__items` | PG `order__items` · SF `ORDER__ITEMS` |
+| Schema name from `host__db__schema` | `sales_db1__crm__dbo` | passed lowercase via `MetaData(schema=...)` and Alembic `env.py` | PG `sales_db1__crm__dbo` · SF `SALES_DB1__CRM__DBO` |
+
+**Why SQLAlchemy names stay lowercase even for Snowflake:** `snowflake-sqlalchemy` treats lowercase identifiers as case-insensitive and emits them unquoted in SQL. Snowflake then folds the unquoted SQL to its native uppercase, producing `CUSTOMER_ID` in the warehouse catalog. If we generated uppercase names in SQLAlchemy metadata, the dialect would treat them as deliberately case-sensitive and quote them — defeating the unquoted-identifier policy. The uppercase warehouse form is a Snowflake-side rendering, not a SQLAlchemy-level concern.
 
 Invariants:
 
 1. **Single logical identity.** Same source object → same SMT logical name, regardless of target.
-2. **Destination-native physical rendering.** Case-insensitive convention so dlt emits unquoted identifiers in each destination's native folding direction. Never quoted-lowercase Snowflake; never always-quoted case-preserving.
+2. **Lowercase SQLAlchemy metadata; destination-native physical rendering.** Generated `Table` / `Column` names in SQLAlchemy metadata are lowercase for **both** targets. dlt and Alembic emit unquoted identifiers; each destination's case-folding rules then determine the warehouse-stored physical identifier (lowercase on Postgres, uppercase on Snowflake). Never quoted-lowercase Snowflake; never always-quoted case-preserving; never uppercase SQLAlchemy names for Snowflake (the dialect would interpret them as deliberately case-sensitive and quote them).
 3. **Double underscores preserved.** A source column literally named `orders__items` keeps the `__`. (This is why `sql_ci_v1.normalize_identifier` is wrong; `normalize_tables_path` is closer but conflates path separation with literal `__`.)
 4. **Trailing underscores: preserved.** Source identifier `foo_` maps to logical `foo_`, not `foo`. This is the call we are making to avoid the collision class entirely.
 5. **Reserved-word handling.** Per-target; applied at the physical rendering layer. Reserved word at destination → append `_`. The logical name is unchanged. The mapping from logical to physical (including reserved-word suffixing and any max-length shortening) is recorded and made available to dlt, sqlacodegen, and Alembic. Tests assert both the canonical logical name and the final target physical name. (Snowflake unquoted identifiers are restricted to letters / digits / underscores / `$`, max 255 chars; Postgres unquoted identifiers fold to lowercase, max 63 chars.)
@@ -228,13 +230,14 @@ Acceptance:
 4. dlt Snowflake destination load mechanics documented in `docs/dlt-snowflake.md`, covering: internal Snowflake stage usage, `PUT`, per-table built-in stages, `keep_staged_files` behavior, and merge / replace strategies.
 5. Constraint enforcement boundary verified — Snowflake enforces `NOT NULL` and `CHECK` but does not enforce `PRIMARY KEY` / `UNIQUE` / `FK`. Migrations emit all of these. Tests assert presence in the migration file for all; tests assert runtime enforcement only for `NOT NULL` / `CHECK`.
 6. sqlacodegen reflects the dlt-created local Snowflake schema; the generated `metadata.py` imports cleanly and exposes the `MetaData` object used by the Snowflake Alembic `env.py`.
-7. The Snowflake Alembic `env.py` registers `snowflake-sqlalchemy`'s `SnowflakeImpl` (`__dialect__ = "snowflake"`) and uses the Snowflake generated metadata.
-8. Alembic autogenerate against the dlt-created Snowflake schema produces no user-table operations.
-9. `alembic upgrade head` against a fresh Snowflake creates the user-table schema.
-10. A second Alembic autogenerate against the upgraded Snowflake produces no user-table operations.
-11. The upgraded schema is catalog-equivalent (normalized comparator) to the dlt-created proof schema, excluding dlt-owned metadata/staging objects.
-12. Tests assert that generated Snowflake migrations do not produce quoted lowercase identifiers.
-13. dlt run against the alembic-created schema with `schema_contract={"tables":"freeze","columns":"freeze","data_type":"freeze"}` succeeds when the source is unchanged; fails on drift.
+7. Generated Snowflake SQLAlchemy metadata uses **lowercase, case-insensitive** `Table` / `Column` names — even though the physical warehouse identifiers appear uppercase in `SHOW TABLES` / `INFORMATION_SCHEMA`. `snowflake-sqlalchemy` treats lowercase identifiers as case-insensitive and emits them unquoted. Tests assert that no `Table` or `Column` name in the generated metadata is uppercase. (The mechanism for translating Snowflake's uppercase catalog into lowercase metadata — `snowflake-sqlalchemy` reflection setting, a post-reflection pass in `smt_dlt.destinations`, or other — is an implementation choice resolved during this issue.)
+8. The Snowflake Alembic `env.py` registers `snowflake-sqlalchemy`'s `SnowflakeImpl` (`__dialect__ = "snowflake"`) and uses the Snowflake generated metadata.
+9. Alembic autogenerate against the dlt-created Snowflake schema produces no user-table operations.
+10. `alembic upgrade head` against a fresh Snowflake creates the user-table schema.
+11. A second Alembic autogenerate against the upgraded Snowflake produces no user-table operations.
+12. The upgraded schema is catalog-equivalent (normalized comparator) to the dlt-created proof schema, excluding dlt-owned metadata/staging objects.
+13. Tests assert that generated Snowflake migrations do not produce **quoted identifiers** (neither uppercase nor lowercase) by default — only unquoted forms.
+14. dlt run against the alembic-created schema with `schema_contract={"tables":"freeze","columns":"freeze","data_type":"freeze"}` succeeds when the source is unchanged; fails on drift.
 
 ### Issue 4 — Repoint sqlacodegen promotion + remove MSSQL target + add Snowflake target
 
@@ -281,4 +284,5 @@ Issue 2 (PG proof)   Issue 3 (SF proof)
 - Whether `smt_dlt.pipeline.build_pipeline()` lives in this repo or is replaced by direct dlt API calls from `smt/pipeline.py`. Decided during Issue 2.
 - Concrete reserved-word lists per target. Pull from Postgres / Snowflake docs during Issue 1.
 - Snowflake auth-method ergonomics in `smt.yaml` (password / key-pair / OAuth). Issue 3 should produce concrete YAML examples for each auth method.
-- Whether the catalog-equivalence comparator used in Issues 2/3 acceptance lives in `tests/proof_postgres/` and `tests/proof_snowflake/` (per-target) or in a shared `tests/_catalog_compare/` helper. Decide in Issue 2.
+- Mechanism for translating Snowflake's uppercase catalog into lowercase SQLAlchemy metadata during reflection: `snowflake-sqlalchemy` reflection configuration, a post-reflection lowercase pass in `smt_dlt.destinations`, or another approach. Decided in Issue 3.
+- Whether the catalog-equivalence comparator used in Issues 2/3 acceptance lives in `tests/proof_postgres/` and `tests/proof_snowflake/` (per-target) or in a shared `tests/_catalog_compare/` helper. Decided in Issue 2.
