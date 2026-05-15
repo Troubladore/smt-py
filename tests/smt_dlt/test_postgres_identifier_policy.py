@@ -101,3 +101,13 @@ def test_shortening_disambiguates_different_inputs_with_same_prefix():
     assert p.physical_name(a) != p.physical_name(b)
     assert len(p.physical_name(a)) == 63
     assert len(p.physical_name(b)) == 63
+
+
+def test_shortening_preserves_prefix():
+    # The first (max_length - 9) characters of the shortened output should
+    # match the corresponding prefix of the folded input — locks the format.
+    p = postgres_identifier_policy()
+    name = "x" * 100
+    out = p.physical_name(name)
+    assert out.startswith("x" * (63 - 9))
+    assert out[63 - 9] == "_"

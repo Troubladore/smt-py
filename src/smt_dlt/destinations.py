@@ -8,6 +8,11 @@ from typing import Callable
 
 from smt_dlt.naming import normalize_source_component  # noqa: F401  # used in subsequent tasks
 
+# Length of the hex hash suffix used by IdentifierPolicy._shorten. 32 bits is
+# enough for realistic identifier counts; collision risk is tracked in issue #1.
+_HASH_DIGEST_BYTES = 4
+_HASH_SUFFIX_LEN = 2 * _HASH_DIGEST_BYTES  # hex encoding doubles byte count
+
 
 @dataclass(frozen=True)
 class IdentifierPolicy:
@@ -46,16 +51,23 @@ class IdentifierPolicy:
         ``"select"`` becomes ``"SELECT_"`` (not ``"SELECT" + "_"`` then
         re-folded).
 
-        Known limitation: per-name suffixing does NOT detect collisions
-        between a reserved name and an already-distinct logical name that
-        happens to match the suffixed form. For example, the source schema
-        having both ``"select"`` (reserved → suffixed to ``"select_"``) and
-        ``"select_"`` (literal, not reserved → stays ``"select_"``) maps both
-        to the same physical name. ``detect_logical_collisions`` treats these
-        as distinct logical inputs, so the duplicate slips past the logical
-        check. Tracked as
-        https://github.com/Troubladore/smt-py/issues/1 — resolution is a
-        batch-level ``detect_physical_collisions``.
+        Known limitations (both tracked as
+        https://github.com/Troubladore/smt-py/issues/1, resolved by a
+        batch-level ``detect_physical_collisions``):
+
+        1. **Reserved-suffix vs trailing-underscore.** ``"select"`` (reserved →
+           suffixed to ``"select_"``) and ``"select_"`` (literal, not
+           reserved → stays ``"select_"``) map to the same physical name.
+           ``detect_logical_collisions`` treats them as distinct logical
+           inputs, so the duplicate slips past the logical check.
+
+        2. **Hash and prefix collisions on shortening.** ``_shorten`` appends
+           an 8-hex-char ``blake2b`` digest (32 bits) to disambiguate
+           truncated prefixes. Random 32-bit hash collisions are negligible
+           at realistic identifier counts (~77k names for 50% birthday
+           odds), but two long inputs sharing the same ``max_length - 9``
+           prefix AND hashing identically would collide. A batch-level
+           check is the right resolution.
         """
         if logical.lower() in self.reserved_words:
             logical = logical + "_"
@@ -65,10 +77,12 @@ class IdentifierPolicy:
         return folded
 
     def _shorten(self, name: str) -> str:
-        # Reserve 8 chars for a hash suffix to disambiguate truncations.
-        suffix_len = 8
-        keep = self.max_length - suffix_len - 1  # -1 for the separator '_'
-        digest = hashlib.blake2b(name.encode("utf-8"), digest_size=4).hexdigest()
+        # See module-level _HASH_SUFFIX_LEN / _HASH_DIGEST_BYTES for the
+        # relationship between the two: 8 hex chars = 2 * 4 raw bytes.
+        keep = self.max_length - _HASH_SUFFIX_LEN - 1  # -1 for the separator '_'
+        digest = hashlib.blake2b(
+            name.encode("utf-8"), digest_size=_HASH_DIGEST_BYTES
+        ).hexdigest()
         return f"{name[:keep]}_{digest}"
 
 
