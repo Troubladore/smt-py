@@ -71,6 +71,6 @@ def test_empty_string_raises(nc):
         nc.normalize_identifier("")
 
 
-def test_none_raises_typeerror_or_valueerror(nc):
-    with pytest.raises((TypeError, ValueError)):
+def test_none_raises_typeerror(nc):
+    with pytest.raises(TypeError, match="must be a string"):
         nc.normalize_identifier(None)  # type: ignore[arg-type]

@@ -23,6 +23,8 @@ class NamingConvention(_DltNamingConvention):
         return False
 
     def normalize_identifier(self, identifier: str) -> str:
+        if not isinstance(identifier, str):
+            raise TypeError("identifier must be a string")
         if not identifier:
             raise ValueError("identifier must be a non-empty string")
         lowered = identifier.lower()
