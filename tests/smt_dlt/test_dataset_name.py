@@ -46,3 +46,20 @@ def test_deterministic():
     a = make_dataset_name(source_host="host", source_database="db", source_schema="schema")
     b = make_dataset_name(source_host="host", source_database="db", source_schema="schema")
     assert a == b
+
+
+# ---- Intentional deviations from legacy `_sanitize_identifier` ----
+
+
+def test_empty_host_raises():
+    # Legacy silently produced "__db__schema"; new function requires a real host.
+    with pytest.raises((TypeError, ValueError)):
+        make_dataset_name(source_host="", source_database="db", source_schema="dbo")
+
+
+def test_unicode_lowercase_to_ascii_is_preserved():
+    # Kelvin sign U+212A is a non-ASCII character that lowercases to ASCII 'k'.
+    # Legacy filters non-ASCII BEFORE lowercasing, so it would be replaced with '_'.
+    # New lowercases first, so it becomes 'k' and survives the identifier filter.
+    result = make_dataset_name(source_host="K-host", source_database="db", source_schema="dbo")
+    assert "k_host" in result

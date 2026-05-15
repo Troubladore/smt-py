@@ -67,6 +67,20 @@ def make_dataset_name(*, source_host: str, source_database: str, source_schema: 
 
     Replaces ``src/smt/config.py::_sanitize_identifier``-based composition.
     Output: ``{sanitized_host}__{lowercased_db}__{lowercased_schema}``.
+
+    Intentional deviations from the legacy composition:
+
+    * ``source_host`` must be a non-empty string. The legacy function silently
+      accepted ``""`` and produced ``"__{db}__{schema}"`` — almost certainly
+      not what the caller wanted.
+    * Unicode characters in ``source_host`` that lowercase to valid ASCII
+      identifier characters (e.g. Kelvin sign ``K`` U+212A → ``k``) are
+      *preserved* rather than replaced with ``_``. The legacy regex filtered
+      before lowercasing, losing the information.
+
+    ``source_database`` and ``source_schema`` are currently only lowercased,
+    matching the legacy composition. Plan 4 may tighten this to full
+    identifier sanitization once the legacy function is retired.
     """
     host_part = normalize_source_component(source_host)
     db_part = source_database.lower()
