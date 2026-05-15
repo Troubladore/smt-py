@@ -30,3 +30,16 @@ def test_metadata_and_physical_agree_for_postgres():
     for logical in ["alpha", "orders__items", "foo_", "123abc"]:
         normalized = p.sqlalchemy_metadata_name(logical)
         assert p.physical_name(logical) == normalized
+
+
+def test_two_postgres_policies_compare_equal():
+    # Frozen dataclass + value-typed fields → equality should be by value.
+    assert postgres_identifier_policy() == postgres_identifier_policy()
+
+
+def test_policy_is_picklable():
+    import pickle
+    p = postgres_identifier_policy()
+    restored = pickle.loads(pickle.dumps(p))
+    assert restored == p
+    assert restored.physical_name("alpha") == "alpha"
