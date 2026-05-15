@@ -13,7 +13,7 @@ from smt.config import _sanitize_identifier
     ],
 )
 def test_make_dataset_name_known_outputs(host, database, schema, expected):
-    assert make_dataset_name(host, database, schema) == expected
+    assert make_dataset_name(source_host=host, source_database=database, source_schema=schema) == expected
 
 
 @pytest.mark.parametrize(
@@ -24,6 +24,8 @@ def test_make_dataset_name_known_outputs(host, database, schema, expected):
         ("db.eruditis.com", "Prod", "public"),
         ("HOST", "DB", "schema"),
         ("Server_01", "AdventureWorks", "Person"),
+        ("db-01.example.com", "MyDB", "dbo"),
+        ("db–prod.example.com", "MyDB", "dbo"),
     ],
 )
 def test_parity_with_legacy(host, database, schema):
@@ -33,14 +35,14 @@ def test_parity_with_legacy(host, database, schema):
         f"__{database.lower()}"
         f"__{schema.lower()}"
     )
-    assert make_dataset_name(host, database, schema) == legacy
+    assert make_dataset_name(source_host=host, source_database=database, source_schema=schema) == legacy
 
 
 def test_leading_digit_host_is_prefixed():
-    assert make_dataset_name("9server", "db", "schema") == "_9server__db__schema"
+    assert make_dataset_name(source_host="9server", source_database="db", source_schema="schema") == "_9server__db__schema"
 
 
 def test_deterministic():
-    a = make_dataset_name("host", "db", "schema")
-    b = make_dataset_name("host", "db", "schema")
+    a = make_dataset_name(source_host="host", source_database="db", source_schema="schema")
+    b = make_dataset_name(source_host="host", source_database="db", source_schema="schema")
     assert a == b

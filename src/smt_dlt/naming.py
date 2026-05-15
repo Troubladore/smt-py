@@ -62,7 +62,7 @@ def normalize_column_name(name: str) -> str:
     return _DEFAULT.normalize_identifier(name)
 
 
-def make_dataset_name(source_host: str, source_database: str, source_schema: str) -> str:
+def make_dataset_name(*, source_host: str, source_database: str, source_schema: str) -> str:
     """Deterministically derive a dataset name from source instance + DB + schema.
 
     Replaces ``src/smt/config.py::_sanitize_identifier``-based composition.
