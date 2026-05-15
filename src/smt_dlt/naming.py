@@ -43,3 +43,20 @@ class NamingConvention(_DltNamingConvention):
 
 
 SmtCanonicalNamingConvention = NamingConvention
+
+_DEFAULT = NamingConvention()
+
+
+def normalize_source_component(name: str) -> str:
+    """Normalize a single SMT source identifier (host segment, schema, etc.)."""
+    return _DEFAULT.normalize_identifier(name)
+
+
+def normalize_table_name(name: str) -> str:
+    """Normalize a source table name."""
+    return _DEFAULT.normalize_identifier(name)
+
+
+def normalize_column_name(name: str) -> str:
+    """Normalize a source column name."""
+    return _DEFAULT.normalize_identifier(name)

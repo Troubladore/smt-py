@@ -1,5 +1,10 @@
 import pytest
 from smt_dlt.naming import NamingConvention, SmtCanonicalNamingConvention
+from smt_dlt.naming import (
+    normalize_source_component,
+    normalize_table_name,
+    normalize_column_name,
+)
 
 
 def test_class_is_named_exactly_NamingConvention():
@@ -93,3 +98,20 @@ def test_normalize_path_also_preserves_double_underscore(nc):
     # normalize_path is a distinct dlt code path from normalize_tables_path;
     # the flat-path override must cover both.
     assert nc.normalize_path("a__b") == "a__b"
+
+
+def test_normalize_source_component_basic():
+    assert normalize_source_component("MyHost") == "myhost"
+
+
+def test_normalize_table_name_preserves_double_underscore():
+    assert normalize_table_name("orders__items") == "orders__items"
+
+
+def test_normalize_column_name_handles_special_chars():
+    assert normalize_column_name("First Name") == "first_name"
+
+
+def test_helpers_delegate_to_NamingConvention():
+    nc = NamingConvention()
+    assert normalize_table_name("X") == nc.normalize_identifier("X")
