@@ -87,3 +87,9 @@ def test_normalize_tables_path_lowercases(nc):
 
 def test_break_path_returns_single_element(nc):
     assert list(nc.break_path("orders__items")) == ["orders__items"]
+
+
+def test_normalize_path_also_preserves_double_underscore(nc):
+    # normalize_path is a distinct dlt code path from normalize_tables_path;
+    # the flat-path override must cover both.
+    assert nc.normalize_path("a__b") == "a__b"

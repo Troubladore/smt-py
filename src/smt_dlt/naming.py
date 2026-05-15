@@ -35,6 +35,10 @@ class NamingConvention(_DltNamingConvention):
 
     def break_path(self, path: str) -> list[str]:
         # SMT source identifiers are flat. We never use `__` as a path separator.
+        # Note: without this override, dlt's default split-then-rejoin happens to be
+        # lossless for already-normalized names — but pinning `[path]` makes the
+        # intent explicit and guards against future dlt changes to PATH_SEPARATOR
+        # handling.
         return [path]
 
 
