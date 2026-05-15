@@ -8,8 +8,6 @@ from typing import Callable
 
 import dlt
 
-from smt_dlt.naming import normalize_source_component  # noqa: F401  # used in subsequent tasks
-
 # Length of the hex hash suffix used by IdentifierPolicy._shorten. 32 bits is
 # enough for realistic identifier counts; collision risk is tracked in issue #1.
 _HASH_DIGEST_BYTES = 4
@@ -148,14 +146,13 @@ def snowflake_identifier_policy() -> IdentifierPolicy:
     )
 
 
-def build_postgres_destination(*, connection_string: str, dataset_name: str):
+def build_postgres_destination(*, connection_string: str):
     """Return a dlt Postgres destination configured with the supplied DSN.
 
-    The SMT canonical naming convention is wired at PIPELINE creation time
-    via ``dlt.pipeline(..., naming="smt_dlt.naming")``, not here — the
-    destination factory owns credentials only. ``dataset_name`` is passed
-    through for symmetry with the Snowflake builder and is used by callers
-    constructing a pipeline.
+    The SMT canonical naming convention and ``dataset_name`` are wired at
+    PIPELINE creation time via
+    ``dlt.pipeline(..., destination=..., dataset_name=..., naming="smt_dlt.naming")``,
+    not here — the destination factory owns credentials only.
     """
     return dlt.destinations.postgres(credentials=connection_string)
 
