@@ -51,8 +51,9 @@ class IdentifierPolicy:
         ``"select_"`` (literal, not reserved → stays ``"select_"``) maps both
         to the same physical name. ``detect_logical_collisions`` treats these
         as distinct logical inputs, so the duplicate slips past the logical
-        check. Resolution is a batch-level ``detect_physical_collisions``
-        (tracked for Plan 4 / future work).
+        check. Tracked as
+        https://github.com/Troubladore/smt-py/issues/1 — resolution is a
+        batch-level ``detect_physical_collisions``.
         """
         if logical.lower() in self.reserved_words:
             logical = logical + "_"
