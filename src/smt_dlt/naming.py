@@ -8,6 +8,8 @@ is a human-readable alias for use elsewhere in the codebase.
 from __future__ import annotations
 
 import re
+from collections import defaultdict
+from collections.abc import Iterable
 
 from dlt.common.normalizers.naming import NamingConvention as _DltNamingConvention
 
@@ -86,3 +88,28 @@ def make_dataset_name(*, source_host: str, source_database: str, source_schema: 
     db_part = source_database.lower()
     schema_part = source_schema.lower()
     return f"{host_part}__{db_part}__{schema_part}"
+
+
+def detect_logical_collisions(source_names: Iterable[str]) -> dict[str, list[str]]:
+    """Return a mapping of logical-name → originals whenever two or more source
+    names normalize to the same logical name. Empty dict means no collisions.
+    """
+    buckets: dict[str, list[str]] = defaultdict(list)
+    for name in source_names:
+        buckets[normalize_source_component(name)].append(name)
+    return {logical: originals for logical, originals in buckets.items() if len(originals) > 1}
+
+
+def raise_on_logical_collisions(source_names: Iterable[str]) -> None:
+    """Raise ValueError naming every collision; no-op when there are none."""
+    collisions = detect_logical_collisions(source_names)
+    if not collisions:
+        return
+    lines = [
+        f"  - {logical!r} ← {', '.join(repr(o) for o in originals)}"
+        for logical, originals in collisions.items()
+    ]
+    raise ValueError(
+        "Source identifiers collide under SMT canonical normalization:\n"
+        + "\n".join(lines)
+    )
