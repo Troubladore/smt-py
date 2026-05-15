@@ -43,3 +43,21 @@ def test_policy_is_picklable():
     restored = pickle.loads(pickle.dumps(p))
     assert restored == p
     assert restored.physical_name("alpha") == "alpha"
+
+
+def test_reserved_word_gets_underscore_suffix_postgres():
+    p = postgres_identifier_policy()
+    # SQL reserved word.
+    assert p.physical_name("select") == "select_"
+    assert p.physical_name("table") == "table_"
+
+
+def test_non_reserved_word_unchanged_postgres():
+    p = postgres_identifier_policy()
+    assert p.physical_name("customer") == "customer"
+
+
+def test_metadata_name_unaffected_by_reserved_word():
+    # Reserved-word handling is physical-layer only.
+    p = postgres_identifier_policy()
+    assert p.sqlalchemy_metadata_name("select") == "select"

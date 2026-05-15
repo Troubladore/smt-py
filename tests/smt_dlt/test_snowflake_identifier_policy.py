@@ -34,3 +34,14 @@ def test_metadata_and_physical_differ_in_case():
     assert p.sqlalchemy_metadata_name("x") != p.physical_name("x")
     assert p.sqlalchemy_metadata_name("x") == "x"
     assert p.physical_name("x") == "X"
+
+
+def test_reserved_word_gets_underscore_suffix_snowflake():
+    p = snowflake_identifier_policy()
+    assert p.physical_name("select") == "SELECT_"
+    assert p.physical_name("current_date") == "CURRENT_DATE_"
+
+
+def test_non_reserved_word_unchanged_snowflake():
+    p = snowflake_identifier_policy()
+    assert p.physical_name("customer") == "CUSTOMER"

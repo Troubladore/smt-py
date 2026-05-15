@@ -39,19 +39,50 @@ class IdentifierPolicy:
 
         ``logical`` MUST already be a canonical SMT identifier (see
         ``sqlalchemy_metadata_name`` for the input contract). This method
-        applies destination-specific case folding and (in later tasks)
-        reserved-word suffixing and max-length shortening.
+        applies destination-specific case folding and reserved-word
+        suffixing.
         """
+        # Reserved-word check uses case-folded comparison so the rule
+        # applies regardless of which case `_to_physical` will fold to.
+        if logical.lower() in self.reserved_words:
+            logical = logical + "_"
         return self._to_physical(logical)
 
 
-# Concrete policies are added in subsequent tasks.
+# Subset of SQL:1999 reserved words common to most engines. Expanded during proof work.
+_POSTGRES_RESERVED = frozenset({
+    "all", "analyse", "analyze", "and", "any", "array", "as", "asc", "asymmetric",
+    "both", "case", "cast", "check", "collate", "column", "constraint", "create",
+    "current_date", "current_time", "current_timestamp", "current_user", "default",
+    "deferrable", "desc", "distinct", "do", "else", "end", "except", "false", "fetch",
+    "for", "foreign", "from", "grant", "group", "having", "in", "initially", "intersect",
+    "into", "lateral", "leading", "limit", "localtime", "localtimestamp", "not", "null",
+    "offset", "on", "only", "or", "order", "placing", "primary", "references", "returning",
+    "select", "session_user", "some", "symmetric", "table", "then", "to", "trailing",
+    "true", "union", "unique", "user", "using", "variadic", "when", "where", "window", "with",
+})
+
+# Snowflake reserved-word set (subset; ref: docs.snowflake.com/en/sql-reference/reserved-keywords).
+_SNOWFLAKE_RESERVED = frozenset({
+    "account", "all", "alter", "and", "any", "as", "between", "by", "case", "cast",
+    "check", "column", "connect", "constraint", "create", "cross", "current",
+    "current_date", "current_time", "current_timestamp", "current_user", "delete",
+    "distinct", "drop", "else", "exists", "false", "following", "for", "from", "full",
+    "grant", "group", "having", "ilike", "in", "increment", "inner", "insert",
+    "intersect", "into", "is", "issue", "join", "lateral", "left", "like", "localtime",
+    "localtimestamp", "minus", "natural", "not", "null", "of", "on", "or", "order",
+    "organization", "qualify", "regexp", "revoke", "right", "rlike", "row", "rows",
+    "sample", "schema", "select", "set", "some", "start", "table", "tablesample",
+    "then", "to", "trigger", "true", "try_cast", "union", "unique", "update", "using",
+    "values", "view", "when", "whenever", "where", "with",
+})
+
 
 def postgres_identifier_policy() -> IdentifierPolicy:
     return IdentifierPolicy(
         target="postgres",
         max_length=63,
-        reserved_words=frozenset(),  # populated in Task 11
+        reserved_words=_POSTGRES_RESERVED,
         # str.lower (the bound-method-on-the-class) is picklable and gives
         # value-equality semantics across calls. A lambda would defeat both.
         _to_physical=str.lower,
@@ -62,7 +93,7 @@ def snowflake_identifier_policy() -> IdentifierPolicy:
     return IdentifierPolicy(
         target="snowflake",
         max_length=255,
-        reserved_words=frozenset(),  # populated in Task 11
+        reserved_words=_SNOWFLAKE_RESERVED,
         # str.upper preserves picklability and value-equality across calls.
         _to_physical=str.upper,
     )
