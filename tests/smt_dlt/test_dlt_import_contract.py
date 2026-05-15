@@ -1,5 +1,4 @@
 import importlib
-import pytest
 
 
 MODULE_PATH = "smt_dlt.naming"
