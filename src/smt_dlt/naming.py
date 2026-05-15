@@ -7,7 +7,11 @@ is a human-readable alias for use elsewhere in the codebase.
 
 from __future__ import annotations
 
+import re
+
 from dlt.common.normalizers.naming import NamingConvention as _DltNamingConvention
+
+_NON_WORD = re.compile(r"[^a-z0-9_]")
 
 
 class NamingConvention(_DltNamingConvention):
@@ -18,8 +22,13 @@ class NamingConvention(_DltNamingConvention):
         return False
 
     def normalize_identifier(self, identifier: str) -> str:
-        # Implemented in Task 3.
-        raise NotImplementedError
+        if not identifier:
+            raise ValueError("identifier must be a non-empty string")
+        lowered = identifier.lower()
+        cleaned = _NON_WORD.sub("_", lowered)
+        if cleaned[0].isdigit():
+            cleaned = "_" + cleaned
+        return cleaned
 
 
 SmtCanonicalNamingConvention = NamingConvention

@@ -19,3 +19,30 @@ def test_is_case_insensitive():
 def test_inherits_from_dlt_NamingConvention():
     from dlt.common.normalizers.naming import NamingConvention as DltNC
     assert issubclass(NamingConvention, DltNC)
+
+
+@pytest.fixture
+def nc():
+    return NamingConvention()
+
+
+def test_lowercases_ascii(nc):
+    assert nc.normalize_identifier("CustomerID") == "customerid"
+
+
+def test_lowercases_all_caps(nc):
+    assert nc.normalize_identifier("ORDER") == "order"
+
+
+def test_replaces_non_word_chars_with_underscore(nc):
+    assert nc.normalize_identifier("first name") == "first_name"
+    assert nc.normalize_identifier("price$") == "price_"
+    assert nc.normalize_identifier("a-b") == "a_b"
+
+
+def test_leading_digit_is_prefixed_with_underscore(nc):
+    assert nc.normalize_identifier("123abc") == "_123abc"
+
+
+def test_preserves_existing_underscores(nc):
+    assert nc.normalize_identifier("foo_bar") == "foo_bar"
