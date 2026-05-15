@@ -46,3 +46,31 @@ def test_leading_digit_is_prefixed_with_underscore(nc):
 
 def test_preserves_existing_underscores(nc):
     assert nc.normalize_identifier("foo_bar") == "foo_bar"
+
+
+def test_preserves_double_underscore_literal(nc):
+    # sql_ci_v1 collapses __ to _; we deliberately do not.
+    assert nc.normalize_identifier("orders__items") == "orders__items"
+
+
+def test_preserves_triple_underscore(nc):
+    assert nc.normalize_identifier("a___b") == "a___b"
+
+
+def test_preserves_trailing_underscore(nc):
+    # sql_ci_v1 strips trailing _; we deliberately do not (foo/foo_ stay distinct).
+    assert nc.normalize_identifier("foo_") == "foo_"
+
+
+def test_preserves_multiple_trailing_underscores(nc):
+    assert nc.normalize_identifier("bar___") == "bar___"
+
+
+def test_empty_string_raises(nc):
+    with pytest.raises(ValueError, match="non-empty"):
+        nc.normalize_identifier("")
+
+
+def test_none_raises_typeerror_or_valueerror(nc):
+    with pytest.raises((TypeError, ValueError)):
+        nc.normalize_identifier(None)  # type: ignore[arg-type]
