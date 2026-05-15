@@ -33,5 +33,9 @@ class NamingConvention(_DltNamingConvention):
             cleaned = "_" + cleaned
         return cleaned
 
+    def break_path(self, path: str) -> list[str]:
+        # SMT source identifiers are flat. We never use `__` as a path separator.
+        return [path]
+
 
 SmtCanonicalNamingConvention = NamingConvention

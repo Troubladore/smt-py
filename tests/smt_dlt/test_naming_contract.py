@@ -74,3 +74,16 @@ def test_empty_string_raises(nc):
 def test_none_raises_typeerror(nc):
     with pytest.raises(TypeError, match="must be a string"):
         nc.normalize_identifier(None)  # type: ignore[arg-type]
+
+
+def test_normalize_tables_path_preserves_double_underscore(nc):
+    # dlt internally calls normalize_tables_path; it must not split on __.
+    assert nc.normalize_tables_path("orders__items") == "orders__items"
+
+
+def test_normalize_tables_path_lowercases(nc):
+    assert nc.normalize_tables_path("OrderItems") == "orderitems"
+
+
+def test_break_path_returns_single_element(nc):
+    assert list(nc.break_path("orders__items")) == ["orders__items"]
