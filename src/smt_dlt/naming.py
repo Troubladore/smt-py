@@ -11,6 +11,7 @@ import re
 
 from dlt.common.normalizers.naming import NamingConvention as _DltNamingConvention
 
+# Applied after `.lower()`, so uppercase letters are already folded out.
 _NON_WORD = re.compile(r"[^a-z0-9_]")
 
 
