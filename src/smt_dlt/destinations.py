@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -39,8 +40,9 @@ class IdentifierPolicy:
 
         ``logical`` MUST already be a canonical SMT identifier (see
         ``sqlalchemy_metadata_name`` for the input contract). This method
-        applies destination-specific case folding and reserved-word
-        suffixing. Suffixing happens BEFORE folding so that on Snowflake
+        applies destination-specific case folding, reserved-word suffixing,
+        and max-length shortening with a deterministic hash suffix when
+        necessary. Suffixing happens BEFORE folding so that on Snowflake
         ``"select"`` becomes ``"SELECT_"`` (not ``"SELECT" + "_"`` then
         re-folded).
 
@@ -57,7 +59,17 @@ class IdentifierPolicy:
         """
         if logical.lower() in self.reserved_words:
             logical = logical + "_"
-        return self._to_physical(logical)
+        folded = self._to_physical(logical)
+        if len(folded) > self.max_length:
+            folded = self._shorten(folded)
+        return folded
+
+    def _shorten(self, name: str) -> str:
+        # Reserve 8 chars for a hash suffix to disambiguate truncations.
+        suffix_len = 8
+        keep = self.max_length - suffix_len - 1  # -1 for the separator '_'
+        digest = hashlib.blake2b(name.encode("utf-8"), digest_size=4).hexdigest()
+        return f"{name[:keep]}_{digest}"
 
 
 # Subset of SQL:1999 reserved words common to most engines, plus common-in-real-

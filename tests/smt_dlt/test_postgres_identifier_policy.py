@@ -73,3 +73,31 @@ def test_reserved_suffix_collision_with_trailing_underscore_is_known_limitation(
     assert p.physical_name("select") == "select_"
     assert p.physical_name("select_") == "select_"
     # Both produce the same physical name — collision is not raised at this layer.
+
+
+def test_short_names_unchanged():
+    p = postgres_identifier_policy()
+    assert p.physical_name("short_name") == "short_name"
+
+
+def test_too_long_name_is_shortened_to_max_length():
+    p = postgres_identifier_policy()  # max 63
+    name = "x" * 100
+    out = p.physical_name(name)
+    assert len(out) == 63
+
+
+def test_shortening_is_deterministic():
+    p = postgres_identifier_policy()
+    name = "x" * 100
+    assert p.physical_name(name) == p.physical_name(name)
+
+
+def test_shortening_disambiguates_different_inputs_with_same_prefix():
+    p = postgres_identifier_policy()
+    a = "a" * 100
+    b = "a" * 99 + "b"  # same 63-char prefix once truncated
+    # Both are >63 chars; the hash suffix MUST differ.
+    assert p.physical_name(a) != p.physical_name(b)
+    assert len(p.physical_name(a)) == 63
+    assert len(p.physical_name(b)) == 63

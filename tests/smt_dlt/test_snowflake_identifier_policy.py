@@ -51,3 +51,16 @@ def test_reserved_suffix_collision_with_trailing_underscore_is_known_limitation(
     p = snowflake_identifier_policy()
     assert p.physical_name("select") == "SELECT_"
     assert p.physical_name("select_") == "SELECT_"
+
+
+def test_snowflake_255_char_limit():
+    p = snowflake_identifier_policy()
+    name = "x" * 300
+    out = p.physical_name(name)
+    assert len(out) == 255
+
+
+def test_snowflake_does_not_shorten_under_limit():
+    p = snowflake_identifier_policy()
+    name = "x" * 200
+    assert p.physical_name(name) == "X" * 200
