@@ -61,3 +61,15 @@ def test_metadata_name_unaffected_by_reserved_word():
     # Reserved-word handling is physical-layer only.
     p = postgres_identifier_policy()
     assert p.sqlalchemy_metadata_name("select") == "select"
+
+
+def test_reserved_suffix_collision_with_trailing_underscore_is_known_limitation():
+    # Documents the limitation: per-name reserved-word suffixing collides with
+    # a literal trailing-underscore form of the same root. detect_logical_collisions
+    # treats these as distinct (which is correct at the logical layer), so the
+    # duplicate slips through to physical names. Resolution: a future
+    # detect_physical_collisions batch check (Plan 4 / follow-up).
+    p = postgres_identifier_policy()
+    assert p.physical_name("select") == "select_"
+    assert p.physical_name("select_") == "select_"
+    # Both produce the same physical name — collision is not raised at this layer.

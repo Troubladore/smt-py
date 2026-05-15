@@ -45,3 +45,9 @@ def test_reserved_word_gets_underscore_suffix_snowflake():
 def test_non_reserved_word_unchanged_snowflake():
     p = snowflake_identifier_policy()
     assert p.physical_name("customer") == "CUSTOMER"
+
+
+def test_reserved_suffix_collision_with_trailing_underscore_is_known_limitation():
+    p = snowflake_identifier_policy()
+    assert p.physical_name("select") == "SELECT_"
+    assert p.physical_name("select_") == "SELECT_"

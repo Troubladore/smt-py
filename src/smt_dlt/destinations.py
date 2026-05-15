@@ -40,41 +40,61 @@ class IdentifierPolicy:
         ``logical`` MUST already be a canonical SMT identifier (see
         ``sqlalchemy_metadata_name`` for the input contract). This method
         applies destination-specific case folding and reserved-word
-        suffixing.
+        suffixing. Suffixing happens BEFORE folding so that on Snowflake
+        ``"select"`` becomes ``"SELECT_"`` (not ``"SELECT" + "_"`` then
+        re-folded).
+
+        Known limitation: per-name suffixing does NOT detect collisions
+        between a reserved name and an already-distinct logical name that
+        happens to match the suffixed form. For example, the source schema
+        having both ``"select"`` (reserved → suffixed to ``"select_"``) and
+        ``"select_"`` (literal, not reserved → stays ``"select_"``) maps both
+        to the same physical name. ``detect_logical_collisions`` treats these
+        as distinct logical inputs, so the duplicate slips past the logical
+        check. Resolution is a batch-level ``detect_physical_collisions``
+        (tracked for Plan 4 / future work).
         """
-        # Reserved-word check uses case-folded comparison so the rule
-        # applies regardless of which case `_to_physical` will fold to.
         if logical.lower() in self.reserved_words:
             logical = logical + "_"
         return self._to_physical(logical)
 
 
-# Subset of SQL:1999 reserved words common to most engines. Expanded during proof work.
+# Subset of SQL:1999 reserved words common to most engines, plus common-in-real-
+# source-schemas keywords that PG marks as reserved at the "can be column or
+# type" level (key, value, type, name, id, comment, etc.). Expanded during proof
+# work as concrete collisions surface.
 _POSTGRES_RESERVED = frozenset({
     "all", "analyse", "analyze", "and", "any", "array", "as", "asc", "asymmetric",
-    "both", "case", "cast", "check", "collate", "column", "constraint", "create",
-    "current_date", "current_time", "current_timestamp", "current_user", "default",
-    "deferrable", "desc", "distinct", "do", "else", "end", "except", "false", "fetch",
-    "for", "foreign", "from", "grant", "group", "having", "in", "initially", "intersect",
-    "into", "lateral", "leading", "limit", "localtime", "localtimestamp", "not", "null",
-    "offset", "on", "only", "or", "order", "placing", "primary", "references", "returning",
-    "select", "session_user", "some", "symmetric", "table", "then", "to", "trailing",
-    "true", "union", "unique", "user", "using", "variadic", "when", "where", "window", "with",
+    "both", "case", "cast", "check", "collate", "column", "comment", "constraint",
+    "create", "current_date", "current_time", "current_timestamp", "current_user",
+    "database", "default", "deferrable", "desc", "distinct", "do", "else", "end",
+    "except", "false", "fetch", "for", "foreign", "from", "function", "grant",
+    "group", "having", "id", "in", "index", "initially", "intersect", "into",
+    "key", "lateral", "leading", "limit", "localtime", "localtimestamp", "name",
+    "not", "null", "offset", "on", "only", "or", "order", "placing", "primary",
+    "procedure", "references", "returning", "role", "schema", "select",
+    "sequence", "session_user", "some", "symmetric", "table", "then", "to",
+    "trailing", "trigger", "true", "type", "union", "unique", "user", "using",
+    "value", "variadic", "view", "when", "where", "window", "with",
 })
 
-# Snowflake reserved-word set (subset; ref: docs.snowflake.com/en/sql-reference/reserved-keywords).
+# Snowflake reserved-word set: subset of Snowflake's reserved keywords plus
+# common-in-real-source-schemas names that Snowflake treats as reserved
+# (database, key, value, type, name, etc.).
 _SNOWFLAKE_RESERVED = frozenset({
     "account", "all", "alter", "and", "any", "as", "between", "by", "case", "cast",
-    "check", "column", "connect", "constraint", "create", "cross", "current",
-    "current_date", "current_time", "current_timestamp", "current_user", "delete",
-    "distinct", "drop", "else", "exists", "false", "following", "for", "from", "full",
-    "grant", "group", "having", "ilike", "in", "increment", "inner", "insert",
-    "intersect", "into", "is", "issue", "join", "lateral", "left", "like", "localtime",
-    "localtimestamp", "minus", "natural", "not", "null", "of", "on", "or", "order",
-    "organization", "qualify", "regexp", "revoke", "right", "rlike", "row", "rows",
-    "sample", "schema", "select", "set", "some", "start", "table", "tablesample",
-    "then", "to", "trigger", "true", "try_cast", "union", "unique", "update", "using",
-    "values", "view", "when", "whenever", "where", "with",
+    "check", "column", "comment", "connect", "constraint", "create", "cross",
+    "current", "current_date", "current_time", "current_timestamp", "current_user",
+    "database", "delete", "distinct", "drop", "else", "exists", "false", "following",
+    "for", "from", "full", "function", "grant", "group", "having", "id", "ilike",
+    "in", "increment", "index", "inner", "insert", "intersect", "into", "is",
+    "issue", "join", "key", "lateral", "left", "like", "localtime", "localtimestamp",
+    "minus", "name", "natural", "not", "null", "of", "on", "or", "order",
+    "organization", "procedure", "qualify", "regexp", "revoke", "right", "rlike",
+    "role", "row", "rows", "sample", "schema", "select", "sequence", "set", "some",
+    "start", "table", "tablesample", "then", "to", "trigger", "true", "try_cast",
+    "type", "union", "unique", "update", "using", "value", "values", "view", "when",
+    "whenever", "where", "with",
 })
 
 
